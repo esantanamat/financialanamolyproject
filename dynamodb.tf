@@ -3,13 +3,15 @@ provider "aws" {
 }
 
 resource "aws_dynamodb_table" "expenses-table" {
-  name           = "FinancialExpenses"
-  billing_mode   = "PAY_PER_REQUEST"
-  read_capacity  = 20
-  write_capacity = 20
-  hash_key       = "user_id"
-  range_key      = "date"
+  name         = "FinancialExpenses"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "user_id"
+  range_key    = "date_transaction_id"
 
+  attribute {
+    name = "date_transaction_id"
+    type = "S"
+  }
   attribute {
     name = "transaction_id"
     type = "S"
@@ -32,7 +34,7 @@ resource "aws_dynamodb_table" "expenses-table" {
 
   attribute {
     name = "flagged"
-    type = "B"
+    type = "S"
   }
   attribute {
     name = "user_id"
@@ -53,17 +55,20 @@ resource "aws_dynamodb_table" "expenses-table" {
     name            = "TransactionIndex"
     hash_key        = "transaction_id"
     projection_type = "ALL"
-    read_capacity   = 10
-    write_capacity  = 10
-  }
 
+  }
+  global_secondary_index {
+    name            = "DateIndex"
+    hash_key        = "date"
+    projection_type = "ALL"
+
+  }
 
   global_secondary_index {
     name            = "CategoryIndex"
     hash_key        = "category"
     projection_type = "ALL"
-    read_capacity   = 10
-    write_capacity  = 10
+
   }
 
 
@@ -71,8 +76,7 @@ resource "aws_dynamodb_table" "expenses-table" {
     name            = "CostIndex"
     hash_key        = "cost"
     projection_type = "ALL"
-    read_capacity   = 10
-    write_capacity  = 10
+
   }
 
 
@@ -80,8 +84,6 @@ resource "aws_dynamodb_table" "expenses-table" {
     name            = "FlaggedIndex"
     hash_key        = "flagged"
     projection_type = "ALL"
-    read_capacity   = 10
-    write_capacity  = 10
   }
 
 
@@ -89,8 +91,7 @@ resource "aws_dynamodb_table" "expenses-table" {
     name            = "NameIndex"
     hash_key        = "name"
     projection_type = "ALL"
-    read_capacity   = 10
-    write_capacity  = 10
+
   }
 
 
