@@ -1,44 +1,48 @@
+import boto3
 import pandas as pd
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import LabelEncoder
-import joblib
 from decimal import Decimal
+from sklearn.ensemble import IsolationForest
+import pickle 
 
 
-data = [
-    {'amount': 100.5, 'category': 'Food & drink', 'merchant': 'McDonalds', 'user_id': 'user1'},
-    {'amount': 20.0, 'category': 'Food & drink', 'merchant': 'Burger King', 'user_id': 'user1'},
-    {'amount': 300.0, 'category': 'Groceries', 'merchant': 'Walmart', 'user_id': 'user1'},
-    {'amount': 1500.0, 'category': 'Shopping', 'merchant': 'Amazon', 'user_id': 'user1'},
-    {'amount': 10.0, 'category': 'Entertainment', 'merchant': 'Netflix', 'user_id': 'user2'},
-    {'amount': 2000.0, 'category': 'Shopping', 'merchant': 'BestBuy', 'user_id': 'user2'},
-]
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('FinancialExpenses')
+
+def get_transactions():
+
+    response = table.scan() 
+    data = response.get('Items', [])
+
+    while 'LastEvaluatedKey' in response: #dynamodb only allows 1mb per scan, need to paginate
+        response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+        data.extend(response.get('Items', []))
+
+    return data
+
+def preprocess_data(transactions):
+
+    df = pd.DataFrame(transactions) #pandas dataframe for preprocessing
+    df['cost'] = df['cost'].astype(float) 
+    return df[['cost']] 
+
+def train_model():
+    transactions = get_transactions()
+    
+    if not transactions:
+        print("Error: No transactions")
+        return
+
+    X_train = preprocess_data(transactions)
 
 
-df = pd.DataFrame(data)
+    model = IsolationForest(n_estimators=150, contamination=0.05, random_state=42)
+    model.fit(X_train)
 
 
-label_encoder = LabelEncoder()
-df['category'] = label_encoder.fit_transform(df['category'])
-df['merchant'] = label_encoder.fit_transform(df['merchant'])
+    with open("anomaly_model.pkl", "wb") as f:
+        pickle.dump(model, f)
 
+    print("Model trained and saved as 'anomaly_model.pkl'")
 
-features = df[['amount', 'category', 'merchant']]
-
-
-model = IsolationForest(n_estimators=100, contamination=0.1)  
-
-
-model.fit(features)
-
-
-df['is_anomaly'] = model.predict(features)
-
-
-df['is_anomaly'] = df['is_anomaly'] == -1
-
-
-print(df)
-
-
-#joblib.dump(model, 'suspicious_activity_model.pkl')
+if __name__ == "__main__":
+    train_model()

@@ -1,48 +1,19 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
-resource "aws_dynamodb_table" "expenses-table" {
-  name         = "FinancialExpenses"
-  billing_mode = "PAY_PER_REQUEST"
+resource "aws_dynamodb_table" "expenses_table" {
+  name         = var.dynamodb_table_name
+  billing_mode = var.billing_mode
   hash_key     = "user_id"
   range_key    = "date_transaction_id"
 
-  attribute {
-    name = "date_transaction_id"
-    type = "S"
-  }
-  attribute {
-    name = "transaction_id"
-    type = "S"
-  }
-
-  attribute {
-    name = "name"
-    type = "S"
-  }
-
-  attribute {
-    name = "cost"
-    type = "N"
-  }
-
-  attribute {
-    name = "category"
-    type = "S"
-  }
-
-  attribute {
-    name = "flagged"
-    type = "S"
-  }
-  attribute {
-    name = "user_id"
-    type = "S"
-  }
-  attribute {
-    name = "date"
-    type = "S"
+  dynamic "attribute" {
+    for_each = var.table_attributes
+    content {
+      name = attribute.value.name
+      type = attribute.value.type
+    }
   }
 
   ttl {
@@ -50,54 +21,100 @@ resource "aws_dynamodb_table" "expenses-table" {
     enabled        = true
   }
 
-
-  global_secondary_index {
-    name            = "TransactionIndex"
-    hash_key        = "transaction_id"
-    projection_type = "ALL"
-
-  }
-  global_secondary_index {
-    name            = "DateIndex"
-    hash_key        = "date"
-    projection_type = "ALL"
-
+  dynamic "global_secondary_index" {
+    for_each = var.global_secondary_indexes
+    content {
+      name            = global_secondary_index.value.name
+      hash_key        = global_secondary_index.value.hash_key
+      projection_type = global_secondary_index.value.projection_type
+    }
   }
 
-  global_secondary_index {
-    name            = "CategoryIndex"
-    hash_key        = "category"
-    projection_type = "ALL"
+  tags = var.dynamodb_tags
+}
 
+resource "aws_iam_role_policy" "lambda_policy" {
+  name = "lambda_policy"
+  role = aws_iam_role.lambda_role.id
+
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "dynamodb:BatchGetItem",
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_dynamodb_table.expenses_table.arn}"
+      }
+    ]
   }
-
-
-  global_secondary_index {
-    name            = "CostIndex"
-    hash_key        = "cost"
-    projection_type = "ALL"
-
+  EOF
+}
+resource "aws_iam_role_policy" "lambda_stream" {
+  name   = "lambdastreampolicy"
+  role   = aws_iam_role.lambda_role.id
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "dynamodb:DescribeStream",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams"
+        ],
+        "Effect": "Allow",
+        "Resource": "arn:aws:dynamodb:us-east-1:463470969308:table/FinancialExpenses/stream/2025-02-24T01:18:35.204"
+      }
+    ]
   }
+  EOF
+}
 
-
-  global_secondary_index {
-    name            = "FlaggedIndex"
-    hash_key        = "flagged"
-    projection_type = "ALL"
+resource "aws_iam_role_policy" "lambda_s3_read" {
+  name   = "lambda_s3_read"
+  role   = aws_iam_role.lambda_role.id
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "s3:GetObject"
+        ],
+        "Effect": "Allow",
+        "Resource": ["arn:aws:s3:::mypklbucket12612"]
+      }
+    ]
   }
+  EOF
+}
 
+resource "aws_iam_role" "lambda_role" {
+  name = "lambda_role"
 
-  global_secondary_index {
-    name            = "NameIndex"
-    hash_key        = "name"
-    projection_type = "ALL"
-
+  assume_role_policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
   }
-
-
-
-  tags = {
-    Name        = "expenses-table"
-    Environment = "dev"
-  }
+  EOF
 }
