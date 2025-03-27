@@ -28,11 +28,11 @@ def detect_anomaly(transaction):
     is_anomalous = prediction[0] == -1
 
     response = table.update_item(
-        Key={"user_id": user_id, "date_transaction_id": date_transaction_id},  # Composite key
-        UpdateExpression="SET flagged = :flag",
-        ExpressionAttributeValues={":flag": int(is_anomalous)},
-        ReturnValues="UPDATED_NEW"
-    )
+    Key={"user_id": user_id, "date_transaction_id": date_transaction_id},  # Composite key
+    UpdateExpression="SET flagged = :flag",
+    ExpressionAttributeValues={":flag": str(is_anomalous).lower()},
+    ReturnValues="UPDATED_NEW"
+)
     return {"anomaly" : is_anomalous, "updated": response['Attributes']}
 
 def lambda_handler(event, context):

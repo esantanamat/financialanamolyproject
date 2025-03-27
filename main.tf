@@ -98,6 +98,24 @@ resource "aws_iam_role_policy" "lambda_s3_read" {
   }
   EOF
 }
+resource "aws_iam_role_policy" "lambda_invoke" {
+  name   = "lambda_invoke"
+  role   = aws_iam_role.lambda_role.id
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "lambda:InvokeFunction"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_lambda_function.detect_anomalies.arn}"
+      }
+    ]
+  }
+  EOF
+}
 
 resource "aws_iam_role" "lambda_role" {
   name = "lambda_role"
@@ -125,7 +143,16 @@ resource "aws_lambda_function" "add_transaction" {
   function_name    = "add_transaction_function"
   runtime          = "python3.13"
   role             = aws_iam_role.lambda_role.arn
-  handler          = "lambda_function.lambda_handler"
+  handler          = "add_transaction.lambda_handler"
   filename         = "add_transaction_function.zip"
   source_code_hash = filebase64sha256("add_transaction_function.zip")
+}
+
+resource "aws_lambda_function" "detect_anomalies" {
+  function_name    = "detect_anomalies_function"
+  runtime          = "python3.13"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "detect_anomalies.lambda_handler"
+  filename         = "detect_anomalies_function.zip"
+  source_code_hash = filebase64sha256("detect_anomalies_function.zip")
 }
