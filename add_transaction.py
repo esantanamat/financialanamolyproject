@@ -4,6 +4,7 @@ import boto3
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('FinancialExpenses')
+lambda_client = boto3.client('lambda')
 
 def lambda_handler(event, context):
     body = json.loads(event['body'])
@@ -20,6 +21,11 @@ def lambda_handler(event, context):
     }
     
     table.put_item(Item=transaction)
+    lambda_client.invoke(
+        FunctionName='',
+        InvocationType='Event',
+        Payload = json.dumps(transaction)
+    )
 
 
     return {
