@@ -118,3 +118,14 @@ resource "aws_iam_role" "lambda_role" {
   }
   EOF
 }
+
+
+
+resource "aws_lambda_function" "add_transaction" {
+  function_name    = "add_transaction_function"
+  runtime          = "python3.13"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  filename         = "add_transaction_function.zip"
+  source_code_hash = filebase64sha256("add_transaction_function.zip")
+}

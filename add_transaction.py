@@ -15,7 +15,8 @@ def lambda_handler(event, context):
         'category': body['category'],
         'merchant': body['merchant'],
         'transaction_id': body['transaction_id'],
-        'flagged': body['flagged']
+        'flagged': body['flagged'],
+        'date_transaction_id': event['date_transaction_id']
     }
     
     table.put_item(Item=transaction)

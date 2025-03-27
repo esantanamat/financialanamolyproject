@@ -1,17 +1,15 @@
 variable "aws_region" {
-  description = "AWS region where resources will be deployed"
+  description = "AWS region"
   type        = string
   default     = "us-east-1"
 }
 
 variable "dynamodb_table_name" {
-  description = "Name of the DynamoDB table"
   type        = string
   default     = "FinancialExpenses"
 }
 
 variable "billing_mode" {
-  description = "Billing mode for DynamoDB"
   type        = string
   default     = "PAY_PER_REQUEST"
 }
