@@ -98,6 +98,28 @@ resource "aws_iam_role_policy" "lambda_s3_read" {
   }
   EOF
 }
+
+resource "aws_iam_role_policy" "ecr_lambda_policy" {
+  name        = "lambda_policy"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "dynamodb:UpdateItem",
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "lambda_invoke" {
   name   = "lambda_invoke"
   role   = aws_iam_role.lambda_role.id
@@ -110,7 +132,7 @@ resource "aws_iam_role_policy" "lambda_invoke" {
           "lambda:InvokeFunction"
         ],
         "Effect": "Allow",
-        "Resource": "${aws_lambda_function.detect_anomalies.arn}"
+        "Resource": "${aws_lambda_function.financial_anomaly_detection.arn}"
       }
     ]
   }
@@ -148,11 +170,87 @@ resource "aws_lambda_function" "add_transaction" {
   source_code_hash = filebase64sha256("add_transaction_function.zip")
 }
 
-resource "aws_lambda_function" "detect_anomalies" {
-  function_name    = "detect_anomalies_function"
-  runtime          = "python3.13"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "detect_anomalies.lambda_handler"
-  filename         = "detect_anomalies_function.zip"
-  source_code_hash = filebase64sha256("detect_anomalies_function.zip")
+# resource "aws_lambda_function" "detect_anomalies" {
+#   function_name    = "detect_anomalies_function"
+#   runtime          = "python3.8"
+#   role             = aws_iam_role.lambda_role.arn
+#   handler          = "detect_anomalies.lambda_handler"
+#   filename         = "detect_anomalies_function.zip"
+#   source_code_hash = filebase64sha256("detect_anomalies_function.zip")
+ 
+# }
+
+# resource "aws_lambda_layer_version" "dependencies_layer_v1" {
+#   s3_bucket           = aws_s3_bucket.lambda_layer_bucket.bucket
+#   s3_key              = aws_s3_bucket_object.lambda_layer_zip1.key
+#   layer_name          = "dependencies_layer_v1"  
+#   compatible_runtimes = ["python3.9", "python3.8"]
+#   description         = "Lambda layer with external dependencies for the detect_anomalies function (v1)"
+
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
+
+# resource "aws_lambda_layer_version" "dependencies_layer_v2" {
+#   s3_bucket           = aws_s3_bucket.lambda_layer_bucket.bucket
+#   s3_key              = aws_s3_bucket_object.lambda_layer_zip2.key
+#   layer_name          = "dependencies_layer_v2"  # Unique name for the next version
+#   compatible_runtimes = ["python3.9", "python3.8"]
+#   description         = "Lambda layer with external dependencies for the detect_anomalies function (v2)"
+
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
+
+# resource "aws_s3_bucket_policy" "bucket_policy" {
+#   bucket = aws_s3_bucket.pkl_model.bucket
+
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Principal = {
+#           Service = "sagemaker.amazonaws.com"
+#         }
+#         Action = "s3:GetObject"
+#         Resource = "arn:aws:s3:::${aws_s3_bucket.pkl_model.bucket}/*"
+#       }
+#     ]
+#   })
+# }
+
+# resource "aws_s3_bucket" "pkl_model" {
+#   bucket = "my-lambda-layer-bucket-126815st43"
+  
+#   tags = {
+#     Name        = "My bucket"
+#     Environment = "Dev"
+#   }
+# }
+
+
+# resource "aws_s3_bucket_object" "anomaly_model" {
+#   bucket = aws_s3_bucket.pkl_model.bucket
+#   key    = "anomaly_model.pkl"
+#   source = "anomaly_model.pkl"
+  
+# }
+
+# resource "aws_s3_bucket_object" "lambda_layer_zip2" {
+#   bucket = aws_s3_bucket.lambda_layer_bucket.bucket
+#   key    = "lambda-layer-2.zip"
+#   source = "lambda-layer-2.zip"
+#   acl    = "private"
+# }
+
+resource "aws_lambda_function" "financial_anomaly_detection" {
+  function_name = "detect_anomalies_function"
+  package_type  = "Image"
+
+  image_uri = "463470969308.dkr.ecr.us-east-1.amazonaws.com/my-lambda-container:latest"
+  
+  role = aws_iam_role.lambda_role.arn
 }
